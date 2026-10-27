@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Virtual Office</title>
+<style>
+  :root { --floor:#e9dcc6; --wall:#5b6b7f; --desk:#8a5a3b; --ink:#1f2933; --mgr:#7c3aed; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, "Noto Sans Thai", sans-serif; color:var(--ink); background:#f4efe6; }
+
+  .office { min-height:100vh; padding:24px 16px 48px; background:#efe6d6; border-top:18px solid var(--wall);
+    display:flex; flex-direction:column; align-items:center; }
+  h1 { margin:0 0 28px; font-size:18px; align-self:flex-start; }
+
+  /* Two tiers, top to bottom: manager room → staff floor, joined like an org chart. */
+  .zone { position:relative; display:flex; justify-content:center; padding:46px 40px 44px; border:6px solid var(--wall); border-radius:14px; box-shadow:0 8px 0 #00000018; max-width:100%; }
+  .zone .tag { position:absolute; top:-15px; left:16px; padding:4px 12px; border-radius:8px; background:var(--wall); color:#fff; font-size:12px; font-weight:600; white-space:nowrap; }
+  .link { width:6px; height:34px; background:var(--wall); }
+  .mgr-room { background:#d6c3a5; }
+  .mgr-room .tag { background:var(--mgr); }
+  .mgr-room .station { zoom:1.15; }
+  .staff { width:980px; padding-bottom:64px; background:
+      repeating-linear-gradient(0deg, transparent 0 39px, #00000010 39px 40px),
+      repeating-linear-gradient(90deg, transparent 0 39px, #00000010 39px 40px), var(--floor); }
+  #floor { display:grid; grid-template-columns:repeat(auto-fit, 150px); justify-content:center; gap:52px 30px; width:100%; }
+
+  .station { position:relative; width:150px; height:150px; }
+  .desk { position:absolute; bottom:0; left:10px; width:130px; height:46px; background:var(--desk); border-radius:6px; box-shadow:0 6px 0 #5e3b25; }
+  .monitor { position:absolute; bottom:46px; left:48px; width:54px; height:36px; background:#1e293b; border:3px solid #334155; border-radius:4px; }
+  .monitor::after { content:""; position:absolute; bottom:-10px; left:21px; width:6px; height:8px; background:#334155; }
+  .station.on .monitor { background:#38bdf8; animation:glow 1s infinite alternate; }
+  @keyframes glow { from { background:#38bdf8; } to { background:#7dd3fc; } }
+  .model { position:absolute; bottom:-44px; left:50%; transform:translateX(-50%); padding:1px 8px; border-radius:6px; background:#1f2933; color:#fde68a; font-size:10px; font-weight:600; letter-spacing:.5px; }
+  .name { position:absolute; bottom:-26px; width:100%; text-align:center; font-size:12px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+  .person { position:absolute; bottom:40px; left:58px; width:34px; height:56px; z-index:-0; transition:opacity .4s; }
+  .person .head { width:26px; height:26px; margin:0 auto; border-radius:50%; background:#f5c9a0; border:2px solid #00000030; }
+  .person .body { width:34px; height:30px; border-radius:12px 12px 4px 4px; background:var(--c); margin-top:-2px; }
+  .station .person { bottom:60px; }
+  .station.on .person { animation:type .35s infinite alternate; }
+  @keyframes type { from { transform:translateY(0) } to { transform:translateY(-3px) } }
+
+  .bubble { position:absolute; bottom:128px; left:50%; transform:translateX(-50%); display:flex; max-width:180px; background:#fff; border-radius:10px; padding:5px 8px; font-size:11px; line-height:1.5; box-shadow:0 2px 6px #0002; white-space:nowrap; z-index:2; }
+  .bubble:empty { display:none; }
+  .bubble::after { content:""; position:absolute; bottom:-6px; left:50%; margin-left:-6px; border:6px solid transparent; border-top-color:#fff; border-bottom:0; }
+  .bubble .text { overflow:hidden; text-overflow:ellipsis; }
+  /* Fixed-width slot so the animated dots never shift or cover the text. */
+  .bubble .dots { flex:none; width:1.2em; }
+  .dots::after { content:""; animation:dots 1.2s steps(4) infinite; }
+  @keyframes dots { 0%{content:""} 25%{content:"."} 50%{content:".."} 75%{content:"..."} }
+  .badge { position:absolute; bottom:12px; left:50%; transform:translateX(-50%); z-index:1; white-space:nowrap; font-size:11px; padding:2px 6px; border-radius:8px; color:#fff; background:var(--c); }
+  .station.idle .badge { background:#94a3b8; }
+  .station.finished .badge { background:#16a34a; }
+
+  .paper { position:fixed; width:18px; height:22px; background:#fff; border:1px solid #999; border-radius:2px; z-index:9; transition:transform .8s cubic-bezier(.3,.6,.3,1), opacity .8s; pointer-events:none; }
+</style>
+</head>
+<body>
+<main class="office">
+  <h1>🏢 Virtual Office</h1>
+  <section class="zone mgr-room"><div class="tag">ห้องผู้จัดการ</div>
+    <div class="station" id="manager" style="--c:var(--mgr)"><div class="bubble"></div><div class="person"><div class="head"></div><div class="body"></div></div><div class="monitor"></div><div class="desk"></div><div class="name">Claude (ผู้จัดการ)</div></div>
+  </section>
+  <div class="link"></div>
+  <section class="zone staff"><div class="tag">พื้นที่พนักงาน</div>
+    <div id="floor"></div>
+  </section>
+</main>
+
+<script>
+// One desk per role; agent_type picks the desk, anything unknown sits at general-staff.
+const ROLES = [
+  ['graphic-designer', 'พนักงานกราฟิก', '#db2777', 'Opus'],
+  ['document-writer', 'พนักงานเอกสาร', '#2563eb', 'Sonnet'],
+  ['data-analyst', 'พนักงานวิเคราะห์ข้อมูล', '#c2410c', 'Opus'],
+  ['software-developer', 'นักพัฒนาโปรแกรม', '#ca8a04', 'Opus'],
+  ['general-staff', 'พนักงานทั่วไป', '#0d9488', 'Sonnet'],
+]; // keep the model column in sync with .claude/agents/*.md
+const floor = document.getElementById('floor');
+const desks = {};   // role -> { st, jobs: Set of agent ids }
+const roleOf = {};  // agent id -> role
+
+for (const [role, label, color, model] of ROLES) {
+  floor.insertAdjacentHTML('beforeend',
+    `<div class="station idle" style="--c:${color}"><div class="bubble"></div><div class="badge">ว่าง</div><div class="person"><div class="head"></div><div class="body"></div></div><div class="monitor"></div><div class="desk"></div><div class="name">${label}</div><div class="model">${model}</div></div>`);
+  desks[role] = { st: floor.lastElementChild, jobs: new Set() };
+}
+
+function setBadge(d) {
+  const waiting = d.jobs.size - 1;
+  d.st.querySelector('.badge').textContent = waiting ? `กำลังทำ · คิว ${waiting}` : 'กำลังทำ';
+}
+
+function say(el, msg, typing) {
+  const b = el.querySelector('.bubble');
+  b.replaceChildren();
+  if (!msg && !typing) return;
+  const t = document.createElement('span');
+  t.className = 'text';
+  t.textContent = msg || 'กำลังทำงาน';
+  b.append(t);
+  if (typing) b.append(Object.assign(document.createElement('span'), { className: 'dots' }));
+}
+function flyPaper(from, to) {
+  const a = from.getBoundingClientRect(), b = to.getBoundingClientRect();
+  const p = document.createElement('div');
+  p.className = 'paper';
+  p.style.left = a.left + 65 + 'px'; p.style.top = a.top + 70 + 'px';
+  document.body.append(p);
+  requestAnimationFrame(() => { p.style.transform = `translate(${b.left - a.left}px, ${b.top - a.top}px) rotate(360deg)`; });
+  setTimeout(() => p.remove(), 850);
+}
+
+const manager = document.getElementById('manager');
+
+function handle(e) {
+  if (e.type === 'manager') {
+    manager.classList.toggle('on', e.state === 'working');
+    say(manager, e.say, e.state === 'working');
+  }
+  if (e.type === 'spawn') {
+    const role = desks[e.agent] ? e.agent : 'general-staff';
+    const d = desks[role];
+    roleOf[e.id] = role;
+    d.jobs.add(e.id);
+    d.st.className = 'station on';
+    setBadge(d);
+    if (d.jobs.size === 1) say(d.st, e.desc || 'รับงาน', true); // queued jobs keep the current job's bubble
+    flyPaper(manager, d.st);
+  }
+  if (e.type === 'activity' && roleOf[e.id]) say(desks[roleOf[e.id]].st, e.say, true);
+  if (e.type === 'done' && roleOf[e.id]) {
+    const d = desks[roleOf[e.id]];
+    delete roleOf[e.id];
+    d.jobs.delete(e.id);
+    flyPaper(d.st, manager);
+    if (d.jobs.size) return setBadge(d);
+    d.st.className = 'station finished';
+    d.st.querySelector('.badge').textContent = '✓ เสร็จ';
+    say(d.st, 'ส่งงานแล้ว');
+    setTimeout(() => {
+      if (!d.st.classList.contains('finished')) return;
+      d.st.className = 'station idle';
+      d.st.querySelector('.badge').textContent = 'ว่าง';
+      say(d.st, '');
+    }, 8000);
+  }
+}
+
+new EventSource('/events').onmessage = (m) => handle(JSON.parse(m.data));
+</script>
+</body>
+</html>
