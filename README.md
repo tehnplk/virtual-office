@@ -4,6 +4,8 @@
 
 ## ใช้งาน
 
+ต้องใช้ [Claude Code](https://claude.com/claude-code) (แท็บ Code ในแอป Claude หรือ CLI) และ Node.js 20.11 ขึ้นไป ไม่ต้อง `npm install` เพราะไม่มี dependency ยังไม่ได้ทดสอบบน Cowork
+
 ```bash
 npm start
 ```
