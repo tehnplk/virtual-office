@@ -7,9 +7,15 @@ const ROOT = import.meta.dirname;
 const PORT = process.env.PORT || 3000;
 
 const clients = new Set();
+const line = (event) => `data: ${JSON.stringify(event)}\n\n`;
+let lastManager = null;
+const working = new Map(); // agent id -> [spawn event, latest activity event], replayed to new clients
 function emit(event) {
-  const line = `data: ${JSON.stringify(event)}\n\n`;
-  for (const res of clients) res.write(line);
+  if (event.type === 'manager') lastManager = event;
+  if (event.type === 'spawn') working.set(event.id, [event]);
+  if (event.type === 'activity' && working.has(event.id)) working.get(event.id)[1] = event;
+  if (event.type === 'done') working.delete(event.id);
+  for (const res of clients) res.write(line(event));
 }
 
 function detail(input = {}) {
@@ -54,6 +60,7 @@ http.createServer((req, res) => {
   }
   if (req.method === 'GET' && req.url === '/events') {
     res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
+    for (const e of [lastManager, ...[...working.values()].flat()]) if (e) res.write(line(e));
     clients.add(res);
     return req.on('close', () => clients.delete(res));
   }

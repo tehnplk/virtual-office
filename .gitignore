@@ -1,3 +1,4 @@
 node_modules/
 workspace/
 check-boundary.mjs
+.playwright-cli/
