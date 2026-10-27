@@ -23,5 +23,5 @@ office นี้เป็นส่วนหนึ่งของ สำนัก
 - งานที่ต้องรอผลกันให้เรียกทีละตัวตามลำดับ
 - subagent สองตัวที่แก้ไฟล์ชุดเดียวกัน ให้ใช้ `isolation: "worktree"` หรือเรียกทีละตัว
 - ผลงานเก็บใน `workspace/` ตรวจผลงานก่อนรายงาน CEO
-- งานไฟล์ .docx / .pptx / .pdf: ก่อนจ่ายงาน เช็กว่ามี skill `docx` / `pptx` / `pdf` ในรายการ skill หรือยัง (เช่น `anthropic-skills:docx` หรือ `document-skills:docx`) ถ้าไม่มี ให้ผู้จัดการติดตั้งก่อน: `claude plugin marketplace add anthropics/skills` แล้ว `claude plugin install document-skills@anthropic-agent-skills` (ติดตั้งแล้วอาจต้องเริ่ม session ใหม่ skill จึงจะขึ้น)
+- งานไฟล์ .docx / .pptx / .pdf / .xlsx: ก่อนจ่ายงาน เช็กว่ามี skill `docx` / `pptx` / `pdf` / `xlsx` ในรายการ skill หรือยัง (เช่น `anthropic-skills:docx` หรือ `document-skills:docx`) ถ้าไม่มี ให้ผู้จัดการติดตั้งก่อน: `claude plugin marketplace add anthropics/skills` แล้ว `claude plugin install document-skills@anthropic-agent-skills` (ติดตั้งแล้วอาจต้องเริ่ม session ใหม่ skill จึงจะขึ้น)
 - ก่อนจ่ายงาน เช็กว่ามีโฟลเดอร์ `workspace/` หรือยัง ถ้าไม่มี ให้ผู้จัดการสร้างเองก่อนจ่ายงาน
